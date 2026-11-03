@@ -118,6 +118,8 @@ class IOKitService {
         batteryMetrics.batteryPercentage = percentages.displayed
         batteryMetrics.hardwareBatteryPercentage = percentages.hardware
 
+        batteryMetrics.isFullyCharged = getPropertyValue(batteryService, key: "FullyCharged") ?? false
+        batteryMetrics.condition = powerInfo?[kIOPSBatteryHealthKey] as? String ?? "—"
         batteryMetrics.isCharging = powerInfo?[kIOPSIsChargingKey] as? Bool ?? false
         if batteryMetrics.isCharging {
             batteryMetrics.timeRemaining = getTimeToFull(powerInfo: powerInfo) ?? -1

@@ -19,7 +19,6 @@ struct ChargingSettingsView: View {
     @Default(.stopChargingWhenAppClosed) var stopChargingWhenAppClosed
     @Default(.stopChargingWhileSleeping) var stopChargingWhileSleeping
     @Default(.calibrationLowLevel) var calibrationLowLevel
-    @Default(.calibrationHoldMinutes) var calibrationHoldMinutes
     @State private var helperManager = ChargingHelperManager.shared
     @State private var installError: String?
 
@@ -320,7 +319,7 @@ struct ChargingSettingsView: View {
 
                 AidenteCard(
                     "电池校准",
-                    subtitle: "充至 100% → 放电 → 再充满 → 满电保持 → 恢复原上限。",
+                    subtitle: "完全充满 → 放电 → 再完全充满 → 恢复原上限。",
                     icon: "arrow.triangle.2.circlepath.circle.fill",
                     colors: AidenteTheme.dashboardColors
                 ) {
@@ -347,21 +346,10 @@ struct ChargingSettingsView: View {
 
                     AidenteRowDivider()
 
-                    AidenteControlRow(
-                        "满电保持时间",
-                        icon: "timer",
-                        colors: AidenteTheme.automationColors
-                    ) {
-                        Stepper(
-                            AidenteL10n.t(
-                                "\(calibrationHoldMinutes) 分钟",
-                                "\(calibrationHoldMinutes) min"
-                            ),
-                            value: $calibrationHoldMinutes,
-                            in: 15...120,
-                            step: 15
-                        )
-                    }
+                    Text(AidenteL10n.t(
+                        "仅在 macOS 显示 100%、硬件报告已充满且新鲜功率读数确认停止充电后进入下一阶段，不再固定等待一小时。",
+                        "Advances only at 100%, with hardware full-charge confirmation and a fresh non-charging power sample. No fixed one-hour hold."
+                    )).font(.caption).foregroundStyle(.secondary)
                 }
 
                 AidenteCard(
@@ -498,6 +486,7 @@ struct ChargingSettingsView: View {
                 }
             }
         }
+        .disabled(AidenteRuntime.isUIPreview)
         .animation(.default, value: manageCharging)
         .animation(.default, value: sailingMode)
         .animation(.default, value: enableHeatProtectionMode)

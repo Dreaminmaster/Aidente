@@ -30,6 +30,12 @@ class MenuViewModel {
     var batteryHistoryTrackingText: String = AidenteL10n.t("每日记录 · 今天开始")
     var adapterSpecificationText: String = "—"
 
+    var hardwarePercentage: Int = 0
+    var batteryCurrent: Double = 0
+    var batteryVoltage: Double = 0
+    var adapterCurrent: Double = 0
+    var adapterVoltage: Double = 0
+    var batteryCondition: String = "—"
     var displayPercentage: Int = 0
     var chargingMode: ChargingMode = .discharging
     var batteryPower: Double = 0
@@ -41,6 +47,10 @@ class MenuViewModel {
     var topEnergyApps: [AppEnergyUsageSnapshot] = []
     var hasEnergyUsageSample: Bool = false
 
+    var lastPowerSampleDate: Date? { batteryService.lastPowerSampleDate }
+
+    func requestMenuBarSample() { batteryService.scheduleSinglePoll(delay: .zero) }
+
     var chargeLimitOverrideActive: Bool { chargeManager.chargeLimitOverrideActive }
     var forceDischargeActive: Bool { chargeManager.forceDischargeActive }
     var manualPauseActive: Bool { chargeManager.manualPauseActive }
@@ -48,6 +58,8 @@ class MenuViewModel {
     var operationStatusText: String { chargeManager.operationStatusTitle }
     var hasControlError: Bool { chargeManager.controlError != nil }
     var manageChargingEnabled: Bool { Defaults[.manageCharging] }
+    var heatProtectionActive: Bool { chargeManager.operationStatus == .heatProtection }
+    var sailingActive: Bool { chargeManager.operationStatus == .sailing }
     var adapterConnected: Bool = false
 
     private var metricsObservation: Task<Void, Never>?
@@ -176,10 +188,13 @@ class MenuViewModel {
     }
 
     private func updateFormattedValues(from metrics: BatteryMetrics, adapter: AdapterMetrics) {
-        let useHardware = Defaults[.useHardwarePercentage]
-        let percentage =
-            useHardware
-            ? metrics.hardwareBatteryPercentage : metrics.batteryPercentage
+        let percentage = metrics.batteryPercentage
+        hardwarePercentage = metrics.hardwareBatteryPercentage
+        batteryCurrent = metrics.batteryCurrent
+        batteryVoltage = metrics.batteryVoltage
+        adapterCurrent = adapter.adapterCurrent
+        adapterVoltage = adapter.adapterVoltage
+        batteryCondition = metrics.condition
         displayPercentage = percentage
         batteryPercentageText = "\(percentage)%"
 

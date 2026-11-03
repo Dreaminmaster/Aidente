@@ -6,6 +6,8 @@ import SwiftUI
 final class StatusBarManager: NSObject, NSPopoverDelegate, NSWindowDelegate {
     private let statusItem: NSStatusItem
     private let viewModel: MenuViewModel
+    private let displayState: MenuBarDisplayState
+    private var statusHosting: NSHostingView<AnyView>?
     private let settingsWindowController: SettingsWindowController
     private let popover = NSPopover()
     private var displayObservation: Task<Void, Never>?
@@ -18,6 +20,7 @@ final class StatusBarManager: NSObject, NSPopoverDelegate, NSWindowDelegate {
         settingsWindowController: SettingsWindowController
     ) {
         self.viewModel = viewModel
+        self.displayState = MenuBarDisplayState(viewModel: viewModel)
         self.settingsWindowController = settingsWindowController
         statusItem = NSStatusBar.system.statusItem(
             withLength: NSStatusItem.variableLength
@@ -65,9 +68,9 @@ final class StatusBarManager: NSObject, NSPopoverDelegate, NSWindowDelegate {
     private func setupPersistentHostingView() {
         guard let button = statusItem.button else { return }
 
-        let rootView = StatusBarContentView(viewModel: viewModel)
-            .allowsHitTesting(false)
+        let rootView = AnyView(StatusBarContentView(displayState: displayState).allowsHitTesting(false))
         let hosting = NSHostingView(rootView: rootView)
+        statusHosting = hosting
 
         button.subviews.forEach { $0.removeFromSuperview() }
         button.title = ""
@@ -89,22 +92,23 @@ final class StatusBarManager: NSObject, NSPopoverDelegate, NSWindowDelegate {
     private func startDisplayObservation() {
         displayObservation = Task { [weak self] in
             for await _ in Defaults.updates(
-                [.menuBarReadoutStyle, .batteryPercentageDisplayLocation],
-                initial: true
+                [.menuBarIconStyle, .menuBarMetrics, .menuBarItemSpacing,
+                 .menuBarUpdateInterval, .menuBarLowPowerColor, .appLanguage,
+                 .showBatteryStateInStatusIcon, .menuBarReadoutStyle,
+                 .batteryPercentageDisplayLocation], initial: true
             ) {
-                self?.updateStatusItemLength()
-            }
-        }
-        powerWidthObservation = Task { [weak self] in
-            while !Task.isCancelled {
                 guard let self else { return }
-                updateStatusItemLength()
-                await withCheckedContinuation { continuation in
-                    withObservationTracking {
-                        _ = self.viewModel.systemPower
-                        _ = self.viewModel.displayPercentage
-                    } onChange: {
-                        Task { @MainActor in continuation.resume() }
+                self.powerWidthObservation?.cancel()
+                self.powerWidthObservation = Task { [weak self] in
+                    while !Task.isCancelled {
+                        guard let self else { return }
+                        self.displayState.snapshot = MenuBarSnapshot(viewModel: self.viewModel)
+                        await Task.yield()
+                        self.updateStatusItemLength()
+                        // Read-only sampling: never enables or repairs charging control.
+                        self.viewModel.requestMenuBarSample()
+                        let seconds = max(2, min(20, Defaults[.menuBarUpdateInterval]))
+                        try? await Task.sleep(for: .seconds(seconds))
                     }
                 }
             }
@@ -112,34 +116,49 @@ final class StatusBarManager: NSObject, NSPopoverDelegate, NSWindowDelegate {
     }
 
     private func updateStatusItemLength() {
-        let power = String(format: "%.2fW", abs(viewModel.systemPower))
-        let powerWidth = ceil((power as NSString).size(withAttributes: [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 10.5, weight: .semibold)
-        ]).width) + 3
-        let outerWidth = BatteryIndicatorLayout.statusInset * 2
-        let iconWidth = BatteryIndicatorLayout.width(insidePercentage: false) + outerWidth
-        let percentageIconWidth = BatteryIndicatorLayout.width(insidePercentage: true) + outerWidth
-        switch Defaults[.menuBarReadoutStyle] {
-        case .batteryPercentage:
-            switch Defaults[.batteryPercentageDisplayLocation] {
-            case .hidden:
-                statusItem.length = iconWidth
-            case .insideIcon:
-                statusItem.length = percentageIconWidth
-            case .nextToIcon:
-                let textWidth = ceil(("\(viewModel.displayPercentage)%" as NSString).size(withAttributes: [
-                    .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
-                ]).width)
-                statusItem.length = textWidth + iconWidth + BatteryIndicatorLayout.outsideTextSpacing
-            }
-        case .systemPower:
-            statusItem.length = iconWidth + powerWidth
-        case .batteryAndPower:
-            statusItem.length = percentageIconWidth + powerWidth
-        }
+        let hasIcon = Defaults[.menuBarIconStyle] != .hidden
+        let hasMetrics = !MenuBarMetric.selected(from: Defaults[.menuBarMetrics]).isEmpty
+        let hasLegacyPower = Defaults[.menuBarReadoutStyle] != .batteryPercentage
+        statusItem.isVisible = hasIcon || hasMetrics || hasLegacyPower
+        guard statusItem.isVisible, let hosting = statusHosting else { return }
+        hosting.invalidateIntrinsicContentSize()
+        hosting.layoutSubtreeIfNeeded()
+        statusItem.length = ceil(hosting.fittingSize.width) + BatteryIndicatorLayout.statusInset * 2
     }
 
+    @objc private func openMenuBarSettings() {
+        popover.performClose(nil)
+        settingsWindowController.showSettings(tab: .menuBar)
+    }
+
+    @objc private func openDashboard() { showDashboardWindow() }
+    @objc private func quitFromQuickMenu() { viewModel.quit() }
+
     @objc private func togglePopover(_ sender: NSStatusBarButton) {
+        if NSApp.currentEvent?.type == .rightMouseUp {
+            switch Defaults[.menuBarRightClick] {
+            case .popover: break
+            case .settings:
+                openMenuBarSettings()
+                return
+            case .contextMenu:
+                let menu = NSMenu()
+                for (title, action) in [
+                    (AidenteL10n.t("仪表盘", "Dashboard"), #selector(openDashboard)),
+                    (AidenteL10n.t("菜单栏设置", "Menu Bar Settings"), #selector(openMenuBarSettings)),
+                    (AidenteL10n.t("退出 Aidente", "Quit Aidente"), #selector(quitFromQuickMenu))
+                ] {
+                    let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+                    item.target = self
+                    menu.addItem(item)
+                }
+                statusItem.menu = menu
+                sender.performClick(nil)
+                statusItem.menu = nil
+                return
+            }
+        }
+
         if popover.isShown {
             popover.performClose(sender)
             return
@@ -200,7 +219,6 @@ final class StatusBarManager: NSObject, NSPopoverDelegate, NSWindowDelegate {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = true
-        window.appearance = NSAppearance(named: .darkAqua)
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.center()
@@ -241,7 +259,6 @@ final class StatusBarManager: NSObject, NSPopoverDelegate, NSWindowDelegate {
         panel.hasShadow = true
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.appearance = NSAppearance(named: .darkAqua)
         panel.isReleasedWhenClosed = false
         panel.delegate = self
         if let screen = NSScreen.screens.first {
@@ -300,51 +317,36 @@ private final class AidentePreviewPanel: NSPanel {
 }
 
 struct StatusBarContentView: View {
-    let viewModel: MenuViewModel
-    @Default(.batteryPercentageDisplayLocation) var percentageDisplayLocation
-    @Default(.menuBarReadoutStyle) var readoutStyle
-    @Default(.showBatteryStateInStatusIcon) var showState
+    let displayState: MenuBarDisplayState
+    @Default(.batteryPercentageDisplayLocation) private var percentageLocation
+    @Default(.menuBarReadoutStyle) private var readoutStyle
+    @Default(.showBatteryStateInStatusIcon) private var showState
+    @Default(.menuBarIconStyle) private var iconStyle
+    @Default(.menuBarMetrics) private var metricIDs
+    @Default(.menuBarItemSpacing) private var spacing
+    @Default(.menuBarLowPowerColor) private var lowPowerColor
 
     var body: some View {
-        HStack(spacing: 3) {
+        let snapshot = displayState.snapshot
+        HStack(spacing: CGFloat(max(0, min(20, spacing)))) {
             BatteryIndicatorView(
-                batteryLevel: viewModel.displayPercentage,
-                chargingMode: viewModel.chargingMode,
-                isLowPowerModeEnabled: viewModel.isLowPowerModeEnabled,
-                percentageDisplayLocation: batteryIndicatorLocation,
-                showState: showState
+                batteryLevel: snapshot.percentage, chargingMode: snapshot.chargingMode,
+                isLowPowerModeEnabled: lowPowerColor && snapshot.lowPower,
+                percentageDisplayLocation: readoutStyle == .systemPower ? .hidden
+                    : readoutStyle == .batteryAndPower ? .insideIcon : percentageLocation,
+                showState: showState, style: iconStyle, adapterConnected: snapshot.adapterConnected
             )
-
-            switch readoutStyle {
-            case .batteryPercentage:
-                EmptyView()
-            case .systemPower:
-                Text(formattedPower)
-                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-            case .batteryAndPower:
-                Text(formattedPower)
-                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
+            if readoutStyle != .batteryPercentage {
+                Text(snapshot.power).font(.system(size: 10.5, weight: .semibold)).monospacedDigit()
+            }
+            ForEach(MenuBarMetric.selected(from: metricIDs)) { metric in
+                Label(snapshot.values[metric.id] ?? "—", systemImage: metric.icon)
+                    .font(.system(size: 11)).monospacedDigit()
+                    .help("\(metric.group) · \(metric.title)")
             }
         }
-        .fixedSize()
-        .lineLimit(1)
-        .help(AidenteL10n.t(
-            "电量 \(viewModel.displayPercentage)% · 系统功率 \(formattedPower)",
-            "Battery \(viewModel.displayPercentage)% · System power \(formattedPower)"
-        ))
-    }
-
-    private var batteryIndicatorLocation: PercentageDisplayLocation {
-        switch readoutStyle {
-        case .batteryPercentage: percentageDisplayLocation
-        case .systemPower: .hidden
-        case .batteryAndPower: .insideIcon
-        }
-    }
-
-    private var formattedPower: String {
-        String(format: "%.2fW", abs(viewModel.systemPower))
+        .fixedSize().lineLimit(1)
+        .help(AidenteL10n.t("电量 \(snapshot.percentage)% · 系统功率 \(snapshot.power)",
+                            "Battery \(snapshot.percentage)% · System power \(snapshot.power)"))
     }
 }

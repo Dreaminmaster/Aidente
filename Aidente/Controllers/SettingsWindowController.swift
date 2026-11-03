@@ -52,7 +52,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         newWindow.titleVisibility = .hidden
         newWindow.isOpaque = false
         newWindow.backgroundColor = .clear
-        newWindow.appearance = NSAppearance(named: .darkAqua)
         newWindow.contentView?.wantsLayer = true
         newWindow.contentView?.layer?.cornerRadius = 14
         newWindow.contentView?.layer?.masksToBounds = true

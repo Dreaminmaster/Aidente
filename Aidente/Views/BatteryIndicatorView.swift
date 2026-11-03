@@ -23,6 +23,8 @@ struct BatteryIndicatorView: View {
     var isLowPowerModeEnabled: Bool = false
     var percentageDisplayLocation: PercentageDisplayLocation = .hidden
     var showState: Bool = false
+    var style: MenuBarIconStyle = .compact
+    var adapterConnected: Bool = false
 
     private var shouldShowInsidePercentage: Bool {
         percentageDisplayLocation == .insideIcon
@@ -37,6 +39,13 @@ struct BatteryIndicatorView: View {
     }
 
     private var fillColor: Color {
+        if isLowPowerModeEnabled { return AidenteTheme.gold }
+        if !showState && style != .macOS26 { return Color(red: 0.62, green: 0.70, blue: 0.78) }
+        if style == .macOS26 { return .primary }
+        if style == .iOSNative && !isLowPowerModeEnabled {
+            if batteryLevel <= 20 { return Color(red: 1, green: 0.28, blue: 0.30) }
+            return chargingMode == .charging ? .green : Color(white: 0.92)
+        }
         if isCritical { return Color(red: 0.99, green: 0.62, blue: 0.66) }
         if isLowPowerModeEnabled { return AidenteTheme.gold }
         if chargingMode == .charging { return AidenteTheme.mint }
@@ -55,6 +64,32 @@ struct BatteryIndicatorView: View {
     }
 
     var body: some View {
+        Group {
+            if style == .hidden {
+                EmptyView()
+            } else if style == .appIcon || style == .status {
+                HStack(spacing: 3) {
+                    Image(systemName: statusSymbol).font(.system(size: 15, weight: .medium))
+                    if percentageDisplayLocation != .hidden {
+                        Text("\(batteryLevel)%").font(.system(size: 11)).monospacedDigit().lineLimit(1).fixedSize()
+                    }
+                }
+            } else {
+                batteryContent
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityDescription)
+    }
+
+    private var statusSymbol: String {
+        if style == .appIcon { return "leaf.circle" }
+        if chargingMode == .charging { return "bolt.circle.fill" }
+        if chargingMode == .pluggedIn { return "powerplug.fill" }
+        return adapterConnected ? "battery.50percent" : "battery.25percent"
+    }
+
+    private var batteryContent: some View {
         HStack(spacing: BatteryIndicatorLayout.outsideTextSpacing) {
             if shouldShowOutsidePercentage {
                 Text("\(batteryLevel)%")
@@ -97,7 +132,7 @@ struct BatteryIndicatorView: View {
     private var batteryBody: some View {
         ZStack {
             Rectangle()
-                .fill(Layout.trackColor)
+                .fill(style == .macOS26 ? Color.primary.opacity(0.15) : Layout.trackColor)
 
             GeometryReader { geo in
                 Rectangle()
@@ -107,24 +142,27 @@ struct BatteryIndicatorView: View {
                     .animation(Layout.levelAnimation, value: batteryLevel)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: Layout.cornerRadius))
+        .clipShape(RoundedRectangle(cornerRadius: roundedStyle ? 4 : Layout.cornerRadius))
         .overlay {
-            RoundedRectangle(cornerRadius: Layout.cornerRadius)
+            RoundedRectangle(cornerRadius: roundedStyle ? 4 : Layout.cornerRadius)
                 .strokeBorder(.primary.opacity(Layout.outlineOpacity), lineWidth: Layout.strokeWidth)
         }
         .overlay {
-            if shouldShowInsidePercentage {
-                insideContent
-            } else {
-                chargingGlyph
+            Group {
+                if shouldShowInsidePercentage { insideContent }
+                else { chargingGlyph }
             }
+            .foregroundStyle(style == .macOS26 ? Color.white : Layout.contentColor)
+            .blendMode(style == .macOS26 ? .difference : .normal)
         }
-        .foregroundStyle(Layout.contentColor)
+        .compositingGroup()
         .frame(
-            width: shouldShowInsidePercentage ? BatteryIndicatorLayout.insideBodyWidth : BatteryIndicatorLayout.bodyWidth,
+            width: (shouldShowInsidePercentage ? BatteryIndicatorLayout.insideBodyWidth : BatteryIndicatorLayout.bodyWidth) + (roundedStyle ? 3 : 0),
             height: shouldShowInsidePercentage ? BatteryIndicatorLayout.insideBodyHeight : BatteryIndicatorLayout.bodyHeight
         )
     }
+
+    private var roundedStyle: Bool { style == .macOS27 || style == .iOSNative }
 
     private func fillWidth(usableWidth: CGFloat) -> CGFloat {
         usableWidth * CGFloat(min(100, max(0, batteryLevel))) / 100

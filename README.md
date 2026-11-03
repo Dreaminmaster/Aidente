@@ -1,5 +1,10 @@
 # Aidente
 
+> 此 fork 的 macOS 27 对齐工作正在进行，尚不等同于 AlDente Pro。
+> 已补充菜单栏样式 / 自选读数、弹出组件排序和新版校准判定。
+> 完整差异、已验证项目和待验证硬件行为见 [对照报告](Docs/ALDENTE-PARITY.md)。
+> 本 fork 的更新地址为 Dreaminmaster/Aidente，新安装默认关闭自动更新检查。
+
 Aidente is an independent, open-source macOS menu bar app for Apple Silicon
 MacBooks. It monitors battery and power data and can manage low-level charging
 controls through an explicitly approved privileged helper.

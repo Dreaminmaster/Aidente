@@ -7,6 +7,10 @@ struct DashboardPopoverView: View {
     let onOpenSettings: (SettingsTab) -> Void
     let onQuit: () -> Void
 
+    @Default(.popoverWidgets) private var widgetIDs
+    @Default(.showBatteryHealth) private var showBatteryHealth
+    @Default(.showBatteryCycleCount) private var showBatteryCycleCount
+    @Default(.showTimeTillDischarge) private var showTimeRemaining
     @Default(.chargeLimit) private var chargeLimit
     @Default(.manageCharging) private var manageCharging
     @Default(.showBatteryTemperature) private var showBatteryTemperature
@@ -34,13 +38,9 @@ struct DashboardPopoverView: View {
                 ScrollView {
                     LazyVStack(spacing: 10) {
                         statusHero
-                        powerSummary
-                        batterySummary
-                        capacityHistory
-                        energyAppRanking
-                        careActions
-                        automaticProtection
-                        settingsLinks
+                        ForEach(PopoverWidget.selected(from: widgetIDs)) { widget in
+                            widgetView(widget)
+                        }
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 11)
@@ -51,7 +51,6 @@ struct DashboardPopoverView: View {
             }
         }
         .frame(width: 408, height: 720)
-        .preferredColorScheme(.dark)
         .tint(AidenteTheme.jade)
         .onAppear {
             chargeLimitDraft = Double(chargeLimit)
@@ -59,6 +58,19 @@ struct DashboardPopoverView: View {
         .onChange(of: chargeLimit) { _, newValue in
             guard !isAdjustingChargeLimit else { return }
             chargeLimitDraft = Double(newValue)
+        }
+    }
+
+    @ViewBuilder private func widgetView(_ widget: PopoverWidget) -> some View {
+        switch widget {
+        case .powerFlow: powerSummary
+        case .batterySpecs:
+            if showBatteryHealth || showBatteryCycleCount || showTimeRemaining { batterySummary }
+        case .capacityHistory: capacityHistory
+        case .energyApps: energyAppRanking
+        case .careActions: careActions
+        case .protection: automaticProtection
+        case .settingsLinks: settingsLinks
         }
     }
 
@@ -201,25 +213,16 @@ struct DashboardPopoverView: View {
 
     private var batterySummary: some View {
         PopoverCompactCard {
-            HStack(spacing: 0) {
-                CompactMetric(
-                    title: "电池健康",
-                    value: viewModel.batteryHealthText,
-                    tint: AidenteTheme.jade
-                )
-                CompactDivider()
-                CompactMetric(
-                    title: "循环次数",
-                    value: viewModel.cycleCountText,
-                    tint: AidenteTheme.violet
-                )
-                CompactDivider()
-                CompactMetric(
-                    title: "剩余时间",
-                    value: viewModel.timeRemainingText,
-                    tint: AidenteTheme.amber,
-                    compact: true
-                )
+            HStack(spacing: 8) {
+                if showBatteryHealth {
+                    CompactMetric(title: "电池健康", value: viewModel.batteryHealthText, tint: AidenteTheme.jade)
+                }
+                if showBatteryCycleCount {
+                    CompactMetric(title: "循环次数", value: viewModel.cycleCountText, tint: AidenteTheme.violet)
+                }
+                if showTimeRemaining {
+                    CompactMetric(title: "剩余时间", value: viewModel.timeRemainingText, tint: AidenteTheme.amber, compact: true)
+                }
             }
         }
     }

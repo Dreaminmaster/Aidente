@@ -74,6 +74,17 @@ enum AidenteL10n {
     }
 
     private static let english: [String: String] = [
+        "已选菜单栏项目": "Selected Menu Bar Items",
+        "拖动调整读数顺序，点击减号移除。": "Drag to reorder readouts; click minus to remove.",
+        "主图标样式": "Main Icon Style",
+        "选择一个主图标。": "Choose one main icon.",
+        "点击添加到菜单栏。": "Select items to add to the menu bar.",
+        "菜单栏选项": "Menu Bar Options",
+        "调整显示密度、刷新频率与鼠标操作。": "Adjust spacing, refresh interval and mouse actions.",
+        "弹出窗口小组件": "Popover Widgets",
+        "选择组件并调整顺序。充电上限始终显示在顶部。": "Choose and reorder widgets. The charge limit stays at the top.",
+        "充电策略与 macOS 菜单栏保持一致。": "Charging policies follow the macOS battery percentage.",
+        "完全充满 → 放电 → 再完全充满 → 恢复原上限。": "Fully charge → discharge → fully recharge → restore original limit.",
         "中文": "Chinese",
         "跟随系统": "System",
         "语言": "Language",

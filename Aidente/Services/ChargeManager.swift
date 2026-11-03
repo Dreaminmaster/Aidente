@@ -7,14 +7,9 @@ import os.log
 import smc_power
 import AidenteShared
 
-enum CalibrationStage: String {
-    case idle
-    case chargingToFull
-    case dischargingToLow
-    case rechargingToFull
-    case holdingAtFull
-    case restoringLimit
+typealias CalibrationStage = CalibrationProgress
 
+extension CalibrationProgress {
     var title: String {
         switch self {
         case .idle: AidenteL10n.t("空闲", "Idle")
@@ -70,7 +65,7 @@ class ChargeManager {
     private var lastAutomaticDischarge: Bool?
     private var lastNotifiedChargingState: Bool?
     private var heatProtectionPaused = false
-    private var heatProtectionReviewDate = Date.distantPast
+    private var thermalPolicy = HeatProtectionPolicy()
     private var isSystemSleeping = false
     private var isDisablingControl = false
     private struct PowerRequest: Equatable {
@@ -184,6 +179,7 @@ class ChargeManager {
     }
 
     private func startScheduleMonitoring() {
+        guard !AidenteRuntime.isUIPreview else { return }
         scheduleObservation = Task { [weak self] in
             guard let self else { return }
             while !Task.isCancelled {
@@ -257,9 +253,7 @@ class ChargeManager {
             stateWasCleared = true
         }
 
-        let batteryPercentage =
-            Defaults[.useHardwarePercentage]
-            ? controlState.hardwareBatteryPercentage : controlState.batteryPercentage
+        let batteryPercentage = controlState.batteryPercentage
         advanceCalibrationIfNeeded(batteryPercentage: batteryPercentage)
 
         var desiredCharging = false
@@ -295,7 +289,7 @@ class ChargeManager {
         } else if topUpActive {
             desiredCharging = true
             desiredAdapter = true
-            desiredLED = Defaults[.manageMagSafeLED] ? .orange : nil
+            desiredLED = Defaults[.manageMagSafeLED] ? (batteryPercentage >= 100 ? .green : .orange) : nil
             chargingStateReason = AidenteL10n.t(
                 "正在临时将电池充至 100%",
                 "Temporarily charging the battery to 100%"
@@ -348,6 +342,7 @@ class ChargeManager {
             )
         } else {
             heatProtectionPaused = false
+            thermalPolicy.reset()
         }
 
         let capabilities = batteryService.deviceCapabilities
@@ -364,45 +359,24 @@ class ChargeManager {
     }
 
     private func advanceCalibrationIfNeeded(batteryPercentage: Int) {
-        if topUpActive && batteryPercentage >= 100 {
-            setTopUpActive(false)
-            sendWorkflowNotification(
-                title: AidenteL10n.t("临时补电完成", "Top-Up Complete"),
-                body: AidenteL10n.t(
-                    "电池已达到 100%，现已恢复原来的充电上限。",
-                    "The battery reached 100% and the original charge limit has been restored."
-                )
-            )
-        }
-
-        switch calibrationStage {
-        case .idle:
-            return
-        case .chargingToFull where batteryPercentage >= 100:
-            setCalibrationStage(.dischargingToLow)
-        case .dischargingToLow where batteryPercentage <= Defaults[.calibrationLowLevel]:
-            setCalibrationStage(.rechargingToFull)
-        case .rechargingToFull where batteryPercentage >= 100:
-            Defaults[.calibrationHoldUntil] = Date()
-                .addingTimeInterval(Double(Defaults[.calibrationHoldMinutes]) * 60)
-                .timeIntervalSince1970
-            setCalibrationStage(.holdingAtFull)
-        case .holdingAtFull
-            where Date().timeIntervalSince1970 >= Defaults[.calibrationHoldUntil]:
-            setCalibrationStage(.restoringLimit)
-        case .restoringLimit
-            where batteryPercentage <= Defaults[.calibrationOriginalLimit]:
-            setCalibrationStage(.idle)
-            Defaults[.calibrationHoldUntil] = 0
+        let next = calibrationStage.next(
+            percentage: batteryPercentage,
+            fullChargeConfirmed: FullChargeConfirmation.evaluate(
+                percentage: batteryPercentage, hardwareFull: batteryService.metrics.isFullyCharged,
+                isCharging: batteryService.metrics.isCharging,
+                batteryPower: batteryService.metrics.batteryPower,
+                sampleAge: batteryService.lastPowerSampleDate.map { Date().timeIntervalSince($0) }
+            ), lowLevel: Defaults[.calibrationLowLevel],
+            originalLimit: Defaults[.calibrationOriginalLimit]
+        )
+        guard next != calibrationStage else { return }
+        setCalibrationStage(next)
+        Defaults[.calibrationHoldUntil] = 0
+        if next == .idle {
             sendWorkflowNotification(
                 title: AidenteL10n.t("电池校准完成", "Battery Calibration Complete"),
-                body: AidenteL10n.t(
-                    "电池已恢复至 \(Defaults[.calibrationOriginalLimit])% 的原充电上限。",
-                    "The original \(Defaults[.calibrationOriginalLimit])% charge limit has been restored."
-                )
+                body: AidenteL10n.t("电池已恢复原充电上限。", "The original charge limit has been restored.")
             )
-        default:
-            return
         }
     }
 
@@ -451,29 +425,11 @@ class ChargeManager {
         desiredLED: inout MagSafeLEDState?,
         reason: inout String?
     ) {
-        guard Defaults[.enableHeatProtectionMode] else {
-            heatProtectionPaused = false
-            return
-        }
-
-        // Heat protection only overrides an active charge request. Manual pause,
-        // discharge, and calibration hold states should keep their own status.
-        guard desiredCharging || heatProtectionPaused else { return }
-
-        let threshold = Double(Defaults[.heatProtectionLimit])
-        let now = Date()
-
-        if temperature > threshold && !heatProtectionPaused {
-            heatProtectionPaused = true
-            heatProtectionReviewDate = now.addingTimeInterval(300)
-        } else if heatProtectionPaused && now >= heatProtectionReviewDate {
-            if temperature > threshold - 1 {
-                heatProtectionReviewDate = now.addingTimeInterval(300)
-            } else {
-                heatProtectionPaused = false
-            }
-        }
-
+        heatProtectionPaused = thermalPolicy.shouldPause(
+            temperature: temperature, limit: Double(Defaults[.heatProtectionLimit]),
+            enabled: Defaults[.enableHeatProtectionMode],
+            chargingRequested: desiredCharging, now: Date()
+        )
         guard heatProtectionPaused else { return }
         desiredCharging = false
         operationStatus = .heatProtection
@@ -784,6 +740,7 @@ class ChargeManager {
     }
 
     func configureHelperDisconnectPolicy() {
+        guard !AidenteRuntime.isUIPreview else { return }
         guard Defaults[.manageCharging] else { return }
         let resetOnDisconnect = !Defaults[.stopChargingWhenAppClosed]
         Task {
@@ -798,6 +755,7 @@ class ChargeManager {
     }
 
     func checkControlService() {
+        guard !AidenteRuntime.isUIPreview else { return }
         guard Defaults[.manageCharging] else {
             clearControlErrors()
             return

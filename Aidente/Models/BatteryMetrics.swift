@@ -4,6 +4,8 @@ struct BatteryMetrics: Codable, Equatable, Sendable {
     var batteryPercentage: Int = 0
     var hardwareBatteryPercentage: Int = 0
     var isCharging: Bool = false
+    var isFullyCharged: Bool = false
+    var condition: String = "—"
     var timeRemaining: Int = 0
 
     var batteryVoltage: Double = 0
@@ -43,6 +45,7 @@ struct AdapterPowerProfile: Equatable, Identifiable, Sendable {
 }
 
 struct BatteryControlState: Equatable, Sendable {
+    var powerSampleDate: Date? = nil
     var batteryPercentage: Int = 0
     var hardwareBatteryPercentage: Int = 0
     var adapterConnected: Bool = false

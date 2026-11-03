@@ -177,7 +177,7 @@ struct GeneralSettingsView: View {
             }
         }
         .onChange(of: launchAtLogin) { _, newValue in
-            LaunchAtLoginService.shared.setLaunchAtLogin(newValue)
+            if !AidenteRuntime.isUIPreview { LaunchAtLoginService.shared.setLaunchAtLogin(newValue) }
         }
     }
 }

@@ -2,6 +2,7 @@ import Defaults
 import SwiftUI
 
 struct DashboardSettingsView: View {
+    @Default(.popoverWidgets) private var widgetIDs
     @Default(.appLanguage) private var appLanguage
 
     @Default(.showPowerSource) var showPowerSource
@@ -15,8 +16,33 @@ struct DashboardSettingsView: View {
     @Default(.showExternalPower) var showExternalPower
     @Default(.showPowerDistribution) var showPowerDistribution
 
+    private func move(_ widget: PopoverWidget, direction: Int) {
+        guard let index = widgetIDs.firstIndex(of: widget.id), widgetIDs.indices.contains(index + direction) else { return }
+        widgetIDs.swapAt(index, index + direction)
+    }
+
     var body: some View {
         AidenteSettingsPage {
+            AidenteCard("弹出窗口小组件", subtitle: "选择组件并调整顺序。充电上限始终显示在顶部。", icon: "rectangle.3.group", colors: AidenteTheme.generalColors) {
+                ForEach(PopoverWidget.selected(from: widgetIDs)) { widget in
+                    HStack {
+                        Text(widget.title)
+                        Spacer()
+                        Button { move(widget, direction: -1) } label: { Image(systemName: "chevron.up") }
+                            .disabled(widgetIDs.first == widget.id)
+                        Button { move(widget, direction: 1) } label: { Image(systemName: "chevron.down") }
+                            .disabled(widgetIDs.last == widget.id)
+                        Button { widgetIDs.removeAll { $0 == widget.id } } label: { Image(systemName: "minus.circle") }
+                    }
+                }
+                Menu(AidenteL10n.t("添加小组件", "Add Widget")) {
+                    ForEach(PopoverWidget.allCases.filter { !widgetIDs.contains($0.id) }) { widget in
+                        Button(widget.title) { widgetIDs.append(widget.id) }
+                    }
+                }
+                Button(AidenteL10n.t("恢复默认布局", "Restore Default Layout")) { widgetIDs = PopoverWidget.allCases.map(\.id) }
+            }
+
             AidenteCard(
                 "状态信息",
                 subtitle: "选择菜单栏下拉面板中显示的系统与电池信息。",

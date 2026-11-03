@@ -200,14 +200,14 @@ final class UpdateService {
     static let shared = UpdateService()
 
     static let releasesPageURL = URL(
-        string: "https://github.com/buffoons8-sketch/Aidente/releases"
+        string: "https://github.com/Dreaminmaster/Aidente/releases"
     )!
 
     private static let latestReleaseAPIURL = URL(
-        string: "https://api.github.com/repos/buffoons8-sketch/Aidente/releases/latest"
+        string: "https://api.github.com/repos/Dreaminmaster/Aidente/releases/latest"
     )!
     private static let latestReleasePageURL = URL(
-        string: "https://github.com/buffoons8-sketch/Aidente/releases/latest"
+        string: "https://github.com/Dreaminmaster/Aidente/releases/latest"
     )!
     private static let maximumAssetSize = 200 * 1_024 * 1_024
     private static let automaticCheckInterval: Duration = .seconds(6 * 60 * 60)
@@ -310,8 +310,8 @@ final class UpdateService {
             )
         case .checking:
             return AidenteL10n.t(
-                "正在连接 buffoons8-sketch/Aidente",
-                "Connecting to buffoons8-sketch/Aidente"
+                "正在连接 Dreaminmaster/Aidente",
+                "Connecting to Dreaminmaster/Aidente"
             )
         case .upToDate:
             return checkedTimeDescription
@@ -387,6 +387,7 @@ final class UpdateService {
     }
 
     func automaticCheckPreferenceChanged() {
+        guard !AidenteRuntime.isUIPreview else { return }
         if Defaults[.automaticallyCheckForUpdates] {
             start()
         } else {
@@ -563,7 +564,7 @@ final class UpdateService {
             let finalURL = httpResponse.url,
             finalURL.scheme == "https",
             finalURL.host?.lowercased() == "github.com",
-            finalURL.path.hasPrefix("/buffoons8-sketch/Aidente/releases/tag/")
+            finalURL.path.hasPrefix("/Dreaminmaster/Aidente/releases/tag/")
         else {
             throw AidenteUpdateError.invalidResponse
         }
@@ -577,9 +578,9 @@ final class UpdateService {
         let assetName = "Aidente-\(version)-macOS-arm64.zip"
         let checksumName = "SHA256SUMS-\(version).txt"
         guard let assetURL = URL(
-            string: "https://github.com/buffoons8-sketch/Aidente/releases/download/\(tag)/\(assetName)"
+            string: "https://github.com/Dreaminmaster/Aidente/releases/download/\(tag)/\(assetName)"
         ), let checksumURL = URL(
-            string: "https://github.com/buffoons8-sketch/Aidente/releases/download/\(tag)/\(checksumName)"
+            string: "https://github.com/Dreaminmaster/Aidente/releases/download/\(tag)/\(checksumName)"
         ), Self.isOfficialDownloadURL(assetURL), Self.isOfficialDownloadURL(checksumURL)
         else {
             throw AidenteUpdateError.invalidDownloadURL
@@ -1033,7 +1034,7 @@ final class UpdateService {
         url.scheme == "https"
             && url.host?.lowercased() == "github.com"
             && url.path.hasPrefix(
-                "/buffoons8-sketch/Aidente/releases/download/"
+                "/Dreaminmaster/Aidente/releases/download/"
             )
     }
 
@@ -1075,11 +1076,11 @@ final class UpdateService {
         name: "Aidente 6.1",
         notes: "Update preview",
         pageURL: URL(
-            string: "https://github.com/buffoons8-sketch/Aidente/releases/tag/v6.1"
+            string: "https://github.com/Dreaminmaster/Aidente/releases/tag/v6.1"
         )!,
         assetName: "Aidente-6.1-macOS-arm64.zip",
         assetURL: URL(
-            string: "https://github.com/buffoons8-sketch/Aidente/releases/download/v6.1/Aidente-6.1-macOS-arm64.zip"
+            string: "https://github.com/Dreaminmaster/Aidente/releases/download/v6.1/Aidente-6.1-macOS-arm64.zip"
         )!,
         assetSize: 2_500_000,
         sha256: String(repeating: "0", count: 64)

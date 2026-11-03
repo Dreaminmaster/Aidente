@@ -1,0 +1,10 @@
+version = 1
+name = "Aidente"
+
+[setup]
+script = ""
+
+[[actions]]
+name = "Run Preview"
+icon = "run"
+command = "./script/build_and_run.sh"

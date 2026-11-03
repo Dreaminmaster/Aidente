@@ -7,6 +7,8 @@ import SwiftUI
         let content = VStack(spacing: 0) {
             row(dark: false)
             row(dark: true)
+            styles(dark: false)
+            styles(dark: true)
         }
         let renderer = ImageRenderer(content: content)
         renderer.scale = 3
@@ -16,6 +18,29 @@ import SwiftUI
             throw CocoaError(.fileWriteUnknown)
         }
         try png.write(to: URL(fileURLWithPath: path))
+    }
+
+    private static func styles(dark: Bool) -> some View {
+        HStack(spacing: 14) {
+            ForEach(MenuBarIconStyle.allCases) { style in
+                VStack(spacing: 10) {
+                    Text(style.title).font(.system(size: 11))
+                    ForEach([0, 5, 50, 79, 100], id: \.self) { level in
+                        HStack(spacing: 8) {
+                            ForEach([ChargingMode.charging, .pluggedIn, .discharging], id: \.self) { mode in
+                                BatteryIndicatorView(batteryLevel: level, chargingMode: mode,
+                                    isLowPowerModeEnabled: level == 50,
+                                    percentageDisplayLocation: .insideIcon, showState: true,
+                                    style: style, adapterConnected: mode != .discharging)
+                            }
+                        }
+                    }
+                }.frame(width: 185)
+            }
+        }.padding(20)
+            .foregroundStyle(.primary)
+            .background(dark ? Color(white: 0.12) : Color(white: 0.96))
+            .environment(\.colorScheme, dark ? .dark : .light)
     }
 
     private static func row(dark: Bool) -> some View {

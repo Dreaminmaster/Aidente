@@ -33,7 +33,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 Darwin.exit(1)
             }
         }
-        AidenteMigration.migrateLegacyPreferencesIfNeeded()
+        if !AidenteRuntime.isUIPreview { AidenteMigration.migrateLegacyPreferencesIfNeeded() }
 
         // Health-only integration probe: no charge policy, LED changes or UI
         // services. Run from the installed bundle so SMAppService resolves it.
@@ -94,7 +94,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         IOObjectRelease(batteryIOService)
 
-        if Defaults[.launchAtLogin]
+        if !AidenteRuntime.isUIPreview && Defaults[.launchAtLogin]
             && !LaunchAtLoginService.shared.isEnabled
         {
             LaunchAtLoginService.shared.setLaunchAtLogin(true)
@@ -111,7 +111,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 statusBarManager.showPopoverForPreview()
             }
             observePowerEvents()
-            requestNotificationPermissions()
+            if !AidenteRuntime.isUIPreview { requestNotificationPermissions() }
             openSettingsFromCommandLineIfRequested()
             updateService.presentPreviewAlertIfRequested()
         }
@@ -168,7 +168,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             viewModel: viewModel,
             settingsWindowController: settingsWindowController
         )
-        updateService.start()
+        if !AidenteRuntime.isUIPreview { updateService.start() }
     }
 
     private func requestNotificationPermissions() {

@@ -283,6 +283,7 @@ class BatteryService {
 
     private func updateControlState(from metrics: BatteryMetrics, adapter: AdapterMetrics) {
         let newState = BatteryControlState(
+            powerSampleDate: lastPowerSampleDate,
             batteryPercentage: metrics.batteryPercentage,
             hardwareBatteryPercentage: metrics.hardwareBatteryPercentage,
             adapterConnected: adapter.adapterConnected,

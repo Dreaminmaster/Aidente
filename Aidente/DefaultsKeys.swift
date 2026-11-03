@@ -3,6 +3,8 @@ import Foundation
 import smc_power
 
 enum AidenteRuntime {
+    static let preferenceStore = isUIPreview
+        ? UserDefaults(suiteName: "com.aidente.app.preview")! : .standard
     static let isUIPreview = CommandLine.arguments.contains("--ui-preview")
 }
 
@@ -120,80 +122,80 @@ enum InterfaceMaterialStyle: String, Defaults.Serializable, CaseIterable, Identi
 
 extension Defaults.Keys {
     // General
-    static let appLanguage = Key<AppLanguage>("appLanguage", default: .system)
-    static let launchAtLogin = Key<Bool>("launchAtLogin", default: false)
+    static let appLanguage = Key<AppLanguage>("appLanguage", default: .system, suite: AidenteRuntime.preferenceStore)
+    static let launchAtLogin = Key<Bool>("launchAtLogin", default: false, suite: AidenteRuntime.preferenceStore)
     static let interfaceMaterialStyle = Key<InterfaceMaterialStyle>(
-        "interfaceMaterialStyle", default: .glass)
+        "interfaceMaterialStyle", default: .glass, suite: AidenteRuntime.preferenceStore)
     static let automaticallyCheckForUpdates = Key<Bool>(
-        "automaticallyCheckForUpdates", default: true)
+        "automaticallyCheckForUpdates", default: false, suite: AidenteRuntime.preferenceStore)
 
     // Status Icon
     static let batteryPercentageDisplayLocation = Key<PercentageDisplayLocation>(
-        "batteryPercentageDisplayLocation", default: .nextToIcon)
+        "batteryPercentageDisplayLocation", default: .nextToIcon, suite: AidenteRuntime.preferenceStore)
     static let menuBarReadoutStyle = Key<MenuBarReadoutStyle>(
-        "menuBarReadoutStyle", default: .batteryPercentage)
+        "menuBarReadoutStyle", default: .batteryPercentage, suite: AidenteRuntime.preferenceStore)
     static let showBatteryStateInStatusIcon = Key<Bool>(
-        "showBatteryStateInStatusIcon", default: true)
+        "showBatteryStateInStatusIcon", default: true, suite: AidenteRuntime.preferenceStore)
 
     // Notifications
-    static let disableNotifications = Key<Bool>("disableNotifications", default: false)
+    static let disableNotifications = Key<Bool>("disableNotifications", default: false, suite: AidenteRuntime.preferenceStore)
     static let showChargingStatusChangedNotification = Key<Bool>(
-        "showChargingStatusChangedNotification", default: true)
+        "showChargingStatusChangedNotification", default: true, suite: AidenteRuntime.preferenceStore)
 
     // Menu Dashboard
-    static let showTimeTillDischarge = Key<Bool>("showTimeTillDischarge", default: true)
-    static let showBatteryCycleCount = Key<Bool>("showBatteryCycleCount", default: true)
-    static let showBatteryHealth = Key<Bool>("showBatteryHealth", default: true)
-    static let showBatteryTemperature = Key<Bool>("showBatteryTemperature", default: false)
-    static let showPowerSource = Key<Bool>("showPowerSource", default: false)
-    static let showUptime = Key<Bool>("showUptime", default: true)
-    static let showBatteryMode = Key<Bool>("showBatteryMode", default: true)
-    static let showInternalPower = Key<Bool>("showInternalPower", default: true)
-    static let showExternalPower = Key<Bool>("showExternalPower", default: true)
-    static let showPowerDistribution = Key<Bool>("showPowerDistribution", default: false)
+    static let showTimeTillDischarge = Key<Bool>("showTimeTillDischarge", default: true, suite: AidenteRuntime.preferenceStore)
+    static let showBatteryCycleCount = Key<Bool>("showBatteryCycleCount", default: true, suite: AidenteRuntime.preferenceStore)
+    static let showBatteryHealth = Key<Bool>("showBatteryHealth", default: true, suite: AidenteRuntime.preferenceStore)
+    static let showBatteryTemperature = Key<Bool>("showBatteryTemperature", default: false, suite: AidenteRuntime.preferenceStore)
+    static let showPowerSource = Key<Bool>("showPowerSource", default: false, suite: AidenteRuntime.preferenceStore)
+    static let showUptime = Key<Bool>("showUptime", default: true, suite: AidenteRuntime.preferenceStore)
+    static let showBatteryMode = Key<Bool>("showBatteryMode", default: true, suite: AidenteRuntime.preferenceStore)
+    static let showInternalPower = Key<Bool>("showInternalPower", default: true, suite: AidenteRuntime.preferenceStore)
+    static let showExternalPower = Key<Bool>("showExternalPower", default: true, suite: AidenteRuntime.preferenceStore)
+    static let showPowerDistribution = Key<Bool>("showPowerDistribution", default: false, suite: AidenteRuntime.preferenceStore)
 
     // Charging
-    static let manageCharging = Key<Bool>("manageCharging", default: false)
-    static let chargeLimit = Key<Int>("chargeLimit", default: 80)
-    static let sailingMode = Key<Bool>("sailingMode", default: true)
-    static let sailingModeLimit = Key<Int>("sailingModeLimit", default: 5)
-    static let automaticDischarge = Key<Bool>("automaticDischarge", default: false)
-    static let disableSleepUntilChargeLimit = Key<Bool>("disableSleepUntilChargeLimit", default: false)
+    static let manageCharging = Key<Bool>("manageCharging", default: false, suite: AidenteRuntime.preferenceStore)
+    static let chargeLimit = Key<Int>("chargeLimit", default: 80, suite: AidenteRuntime.preferenceStore)
+    static let sailingMode = Key<Bool>("sailingMode", default: true, suite: AidenteRuntime.preferenceStore)
+    static let sailingModeLimit = Key<Int>("sailingModeLimit", default: 5, suite: AidenteRuntime.preferenceStore)
+    static let automaticDischarge = Key<Bool>("automaticDischarge", default: false, suite: AidenteRuntime.preferenceStore)
+    static let disableSleepUntilChargeLimit = Key<Bool>("disableSleepUntilChargeLimit", default: false, suite: AidenteRuntime.preferenceStore)
 
     // Charging - Heat Protection
     static let enableHeatProtectionMode = Key<Bool>(
-        "enableHeatProtectionMode", default: true)
-    static let heatProtectionLimit = Key<Int>("heatProtectionLimit", default: 40)
+        "enableHeatProtectionMode", default: true, suite: AidenteRuntime.preferenceStore)
+    static let heatProtectionLimit = Key<Int>("heatProtectionLimit", default: 40, suite: AidenteRuntime.preferenceStore)
 
     // Charging - MagSafe LED Control
-    static let manageMagSafeLED = Key<Bool>("manageMagSafeLED", default: true)
+    static let manageMagSafeLED = Key<Bool>("manageMagSafeLED", default: true, suite: AidenteRuntime.preferenceStore)
     static let heatProtectionMagSafeLEDState = Key<MagSafeLEDState>(
-        "heatProtectionMagSafeLEDState", default: MagSafeLEDState.blinkOrangeSlow)
+        "heatProtectionMagSafeLEDState", default: MagSafeLEDState.blinkOrangeSlow, suite: AidenteRuntime.preferenceStore)
 
     // Charging - Advanced workflows
     static let stopChargingWhenAppClosed = Key<Bool>(
-        "stopChargingWhenAppClosed", default: false)
+        "stopChargingWhenAppClosed", default: false, suite: AidenteRuntime.preferenceStore)
     static let stopChargingWhileSleeping = Key<Bool>(
-        "stopChargingWhileSleeping", default: true)
-    static let topUpActive = Key<Bool>("topUpActive", default: false)
-    static let manualPauseActive = Key<Bool>("manualPauseActive", default: false)
-    static let forcedDischargeTarget = Key<Int>("forcedDischargeTarget", default: 80)
-    static let calibrationStage = Key<String>("calibrationStage", default: "idle")
+        "stopChargingWhileSleeping", default: true, suite: AidenteRuntime.preferenceStore)
+    static let topUpActive = Key<Bool>("topUpActive", default: false, suite: AidenteRuntime.preferenceStore)
+    static let manualPauseActive = Key<Bool>("manualPauseActive", default: false, suite: AidenteRuntime.preferenceStore)
+    static let forcedDischargeTarget = Key<Int>("forcedDischargeTarget", default: 80, suite: AidenteRuntime.preferenceStore)
+    static let calibrationStage = Key<String>("calibrationStage", default: "idle", suite: AidenteRuntime.preferenceStore)
     static let calibrationOriginalLimit = Key<Int>(
-        "calibrationOriginalLimit", default: 80)
-    static let calibrationLowLevel = Key<Int>("calibrationLowLevel", default: 10)
-    static let calibrationHoldMinutes = Key<Int>("calibrationHoldMinutes", default: 60)
-    static let calibrationHoldUntil = Key<Double>("calibrationHoldUntil", default: 0)
+        "calibrationOriginalLimit", default: 80, suite: AidenteRuntime.preferenceStore)
+    static let calibrationLowLevel = Key<Int>("calibrationLowLevel", default: 10, suite: AidenteRuntime.preferenceStore)
+    static let calibrationHoldMinutes = Key<Int>("calibrationHoldMinutes", default: 60, suite: AidenteRuntime.preferenceStore)
+    static let calibrationHoldUntil = Key<Double>("calibrationHoldUntil", default: 0, suite: AidenteRuntime.preferenceStore)
 
     // Automation
-    static let scheduleTasksData = Key<Data>("scheduleTasksData", default: Data())
+    static let scheduleTasksData = Key<Data>("scheduleTasksData", default: Data(), suite: AidenteRuntime.preferenceStore)
 
     // Advanced
-    static let useHardwarePercentage = Key<Bool>("useHardwarePercentage", default: false)
+    static let useHardwarePercentage = Key<Bool>("useHardwarePercentage", default: false, suite: AidenteRuntime.preferenceStore)
 
     // Diagnostics
     static let diagnosticSessionStartedAt = Key<Double>(
-        "diagnosticSessionStartedAt", default: 0)
+        "diagnosticSessionStartedAt", default: 0, suite: AidenteRuntime.preferenceStore)
     static let diagnosticSessionID = Key<String>(
-        "diagnosticSessionID", default: "")
+        "diagnosticSessionID", default: "", suite: AidenteRuntime.preferenceStore)
 }
